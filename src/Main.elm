@@ -3,6 +3,8 @@ module Main exposing (main)
 import Browser
 import Dict exposing (Dict, insert)
 import Html exposing (..)
+import Html.Attributes exposing (value)
+import Html.Events exposing (onInput)
 import Http
 import Json.Decode exposing (Decoder, field, float, int, list, string)
 import LineChart
@@ -21,9 +23,9 @@ import LineChart.Line as Line
 
 
 type Model
-    = Loading (List NationIso3) MultiData
+    = Loading (List NationIso3) MultiData Year
     | Failure String
-    | Complete MultiData
+    | Complete MultiData Year
 
 
 type alias Data =
@@ -38,6 +40,15 @@ type alias MultiData =
     Dict NationIso3 Data
 
 
+type alias Year =
+    Int
+
+
+earliest : Year
+earliest =
+    1900
+
+
 type alias AnnualTemperature =
     { year : Int
     , temp : Float
@@ -46,7 +57,7 @@ type alias AnnualTemperature =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] Dict.empty, fetchTemperatureData "GBR" )
+    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] Dict.empty earliest, fetchTemperatureData "GBR" )
 
 
 main =
@@ -68,6 +79,7 @@ type GetResponse
 
 type Msg
     = GotData (Result Http.Error GetResponse)
+    | ChangeFrom Year
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -77,17 +89,28 @@ update msg model =
             case result of
                 Ok (GetResponse nation data) ->
                     case model of
-                        Loading [] multidata ->
-                            ( Complete (Dict.insert nation data multidata), Cmd.none )
+                        Loading [] multidata year ->
+                            ( Complete (Dict.insert nation data multidata) year, Cmd.none )
 
-                        Loading (nextNation :: tail) multidata ->
-                            ( Loading tail (Dict.insert nation data multidata), fetchTemperatureData nextNation )
+                        Loading (nextNation :: tail) multidata year ->
+                            ( Loading tail (Dict.insert nation data multidata) year, fetchTemperatureData nextNation )
 
                         _ ->
                             ( model, Cmd.none )
 
                 Err error ->
                     error |> encodeError |> errorEncoding
+
+        ChangeFrom year ->
+            case model of
+                Loading nations multidata _ ->
+                    ( Loading nations multidata year, Cmd.none )
+
+                Complete multidata _ ->
+                    ( Complete multidata year, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 encodeError error =
@@ -154,13 +177,14 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     case model of
-        Loading nations multidata ->
+        Loading nations multidata year ->
             div []
                 [ text ("still loading: " ++ String.join ", " nations)
-                , plotData multidata
+                , plotData year multidata
+                , fromYearSelector
                 ]
 
         Failure error ->
@@ -168,15 +192,30 @@ view model =
                 [ text ("failed: " ++ error)
                 ]
 
-        Complete multidata ->
+        Complete multidata year ->
             div []
                 [ text "Here's the Climate Data"
-                , plotData multidata
+                , plotData year multidata
+                , fromYearSelector
                 ]
 
 
-plotData : MultiData -> Html msg
-plotData multidata =
+fromYearSelector : Html Msg
+fromYearSelector =
+    let
+        changeYear : String -> Msg
+        changeYear txt =
+            ChangeFrom (String.toInt txt |> Maybe.withDefault earliest)
+    in
+    div []
+        [ text "From year:"
+        , select [ onInput changeYear ]
+            (List.range 0 13 |> List.map (\decade -> earliest + 10 * decade) |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ]))
+        ]
+
+
+plotData : Year -> MultiData -> Html msg
+plotData year multidata =
     let
         colors =
             Dict.fromList [ ( 0, Colors.blue ), ( 1, Colors.red ), ( 2, Colors.green ), ( 3, Colors.black ), ( 4, Colors.gray ) ]
@@ -190,7 +229,7 @@ plotData multidata =
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
             in
-            LineChart.line color Dots.square nation (toDataPoints data)
+            LineChart.line color Dots.square nation (toDataPoints year data)
     in
     LineChart.viewCustom
         { x = Axis.default 700 "year" .x
@@ -213,6 +252,6 @@ type alias Point =
     { x : Float, y : Float }
 
 
-toDataPoints : Data -> List Point
-toDataPoints data =
-    List.filter (\p -> p.x > 1980) (List.map (\d -> Point (toFloat d.year) d.temp) data)
+toDataPoints : Year -> Data -> List Point
+toDataPoints year data =
+    List.filter (\p -> p.x > toFloat year) (List.map (\d -> Point (toFloat d.year) d.temp) data)
