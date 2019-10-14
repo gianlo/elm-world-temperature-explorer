@@ -46,7 +46,7 @@ type alias AnnualTemperature =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading [ "GBR", "DZA", "ZAF" ] Dict.empty, fetchTemperatureData "ITA" )
+    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] Dict.empty, fetchTemperatureData "GBR" )
 
 
 main =
@@ -78,7 +78,7 @@ update msg model =
                 Ok (GetResponse nation data) ->
                     case model of
                         Loading [] multidata ->
-                            ( Complete multidata, Cmd.none )
+                            ( Complete (Dict.insert nation data multidata), Cmd.none )
 
                         Loading (nextNation :: tail) multidata ->
                             ( Loading tail (Dict.insert nation data multidata), fetchTemperatureData nextNation )
@@ -157,9 +157,10 @@ subscriptions model =
 view : Model -> Html msg
 view model =
     case model of
-        Loading nations _ ->
+        Loading nations multidata ->
             div []
-                [ text ("loading: " ++ String.join ", " nations)
+                [ text ("still loading: " ++ String.join ", " nations)
+                , plotData multidata
                 ]
 
         Failure error ->
@@ -169,7 +170,7 @@ view model =
 
         Complete multidata ->
             div []
-                [ text "Here's the data"
+                [ text "Here's the Climate Data"
                 , plotData multidata
                 ]
 
@@ -183,8 +184,11 @@ plotData multidata =
         aChart : Int -> NationIso3 -> Data -> LineChart.Series Point
         aChart colorIndex nation data =
             let
+                modIndex =
+                    modBy (Dict.size colors) colorIndex
+
                 color =
-                    Dict.get (modBy (Dict.size colors) colorIndex) colors |> Maybe.withDefault Colors.black
+                    Dict.get modIndex colors |> Maybe.withDefault Colors.black
             in
             LineChart.line color Dots.square nation (toDataPoints data)
     in
@@ -211,4 +215,4 @@ type alias Point =
 
 toDataPoints : Data -> List Point
 toDataPoints data =
-    List.map (\d -> Point (toFloat d.year) d.temp) data
+    List.filter (\p -> p.x > 1980) (List.map (\d -> Point (toFloat d.year) d.temp) data)
