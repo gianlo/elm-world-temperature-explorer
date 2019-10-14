@@ -89,6 +89,7 @@ type GetResponse
 type Msg
     = GotData (Result Http.Error GetResponse)
     | ChangeFrom Year
+    | ChangeTo Year
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,6 +118,17 @@ update msg model =
 
                 Complete multidata uistate ->
                     ( Complete multidata { uistate | fromYear = year }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ChangeTo year ->
+            case model of
+                Loading nations multidata uistate ->
+                    ( Loading nations multidata { uistate | toYear = year }, Cmd.none )
+
+                Complete multidata uistate ->
+                    ( Complete multidata { uistate | toYear = year }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -192,8 +204,9 @@ view model =
         Loading nations multidata uistate ->
             div []
                 [ text ("still loading: " ++ String.join ", " nations)
-                , plotData uistate.fromYear multidata
-                , fromYearSelector uistate.fromYear
+                , plotData uistate multidata
+                , fromYearSelector uistate
+                , toYearSelector uistate
                 ]
 
         Failure error ->
@@ -204,27 +217,59 @@ view model =
         Complete multidata uistate ->
             div []
                 [ text "Here's the Climate Data"
-                , plotData uistate.fromYear multidata
-                , fromYearSelector uistate.fromYear
+                , plotData uistate multidata
+                , fromYearSelector uistate
+                , toYearSelector uistate
                 ]
 
 
-fromYearSelector : Year -> Html Msg
+type alias YearRange m =
+    { m | fromYear : Year, toYear : Year }
+
+
+maximumYearRange : List Year
+maximumYearRange =
+    List.range 0 13
+        |> List.map (\decade -> earliest + 10 * decade)
+
+
+fromYearSelector : YearRange m -> Html Msg
 fromYearSelector current =
     let
         changeYear : String -> Msg
         changeYear txt =
-            ChangeFrom (String.toInt txt |> Maybe.withDefault current)
+            ChangeFrom (String.toInt txt |> Maybe.withDefault current.fromYear)
     in
     div []
         [ text "From year:"
         , select [ onInput changeYear ]
-            (List.range 0 13 |> List.map (\decade -> earliest + 10 * decade) |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ]))
+            (maximumYearRange
+                |> List.filter (\year -> year <= current.toYear)
+                |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
+            )
         ]
 
 
-plotData : Year -> MultiData -> Html msg
-plotData year multidata =
+toYearSelector : YearRange m -> Html Msg
+toYearSelector current =
+    let
+        changeYear : String -> Msg
+        changeYear txt =
+            ChangeTo (String.toInt txt |> Maybe.withDefault current.toYear)
+    in
+    div []
+        [ text "To year:"
+        , select [ onInput changeYear ]
+            (maximumYearRange
+                |> List.filter (\year -> year >= current.fromYear)
+                |> List.reverse
+                |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
+            )
+        ]
+
+
+plotData : YearRange m -> MultiData -> Html msg
+plotData yearRange multidata =
     let
         colors =
             Dict.fromList [ ( 0, Colors.blue ), ( 1, Colors.red ), ( 2, Colors.green ), ( 3, Colors.black ), ( 4, Colors.gray ) ]
@@ -238,7 +283,7 @@ plotData year multidata =
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
             in
-            LineChart.line color Dots.square nation (toDataPoints year data)
+            LineChart.line color Dots.square nation (toDataPoints yearRange data)
     in
     LineChart.viewCustom
         { x = Axis.default 700 "year" .x
@@ -261,6 +306,6 @@ type alias Point =
     { x : Float, y : Float }
 
 
-toDataPoints : Year -> Data -> List Point
-toDataPoints year data =
-    List.filter (\p -> p.x > toFloat year) (List.map (\d -> Point (toFloat d.year) d.temp) data)
+toDataPoints : YearRange m -> Data -> List Point
+toDataPoints yearRange data =
+    List.filter (\p -> p.x >= toFloat yearRange.fromYear && p.x <= toFloat yearRange.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
