@@ -3,8 +3,8 @@ module Main exposing (main)
 import Browser
 import Dict exposing (Dict, insert)
 import Html exposing (..)
-import Html.Attributes exposing (value)
-import Html.Events exposing (onInput)
+import Html.Attributes exposing (checked, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (Decoder, field, float, int, list, string)
 import LineChart
@@ -205,8 +205,8 @@ view model =
             div []
                 [ text ("still loading: " ++ String.join ", " nations)
                 , plotData uistate multidata
-                , fromYearSelector uistate
-                , toYearSelector uistate
+                , nationSelector (Dict.keys multidata) uistate
+                , yearSelector uistate
                 ]
 
         Failure error ->
@@ -218,9 +218,32 @@ view model =
             div []
                 [ text "Here's the Climate Data"
                 , plotData uistate multidata
-                , fromYearSelector uistate
-                , toYearSelector uistate
+                , nationSelector (Dict.keys multidata) uistate
+                , yearSelector uistate
                 ]
+
+
+type alias Selected m =
+    { m | selected : List NationIso3 }
+
+
+checkbox : Bool -> String -> Html msg
+checkbox isChecked name =
+    label
+        []
+        [ input [ type_ "checkbox", checked isChecked ] []
+        , text name
+        ]
+
+
+nationSelector : List NationIso3 -> Selected m -> Html msg
+nationSelector all { selected } =
+    let
+        theCheckbox : NationIso3 -> Html msg
+        theCheckbox nation =
+            checkbox (selected |> List.member nation) nation
+    in
+    fieldset [] (all |> List.map theCheckbox)
 
 
 type alias YearRange m =
@@ -233,35 +256,43 @@ maximumYearRange =
         |> List.map (\decade -> earliest + 10 * decade)
 
 
+yearSelector : YearRange m -> Html Msg
+yearSelector yearRange =
+    div []
+        [ fromYearSelector yearRange
+        , toYearSelector yearRange
+        ]
+
+
 fromYearSelector : YearRange m -> Html Msg
-fromYearSelector current =
+fromYearSelector yearRange =
     let
         changeYear : String -> Msg
         changeYear txt =
-            ChangeFrom (String.toInt txt |> Maybe.withDefault current.fromYear)
+            ChangeFrom (String.toInt txt |> Maybe.withDefault yearRange.fromYear)
     in
     div []
-        [ text "From year:"
+        [ p [] [ text "From year:" ]
         , select [ onInput changeYear ]
             (maximumYearRange
-                |> List.filter (\year -> year <= current.toYear)
+                |> List.filter (\year -> year <= yearRange.toYear)
                 |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
             )
         ]
 
 
 toYearSelector : YearRange m -> Html Msg
-toYearSelector current =
+toYearSelector yearRange =
     let
         changeYear : String -> Msg
         changeYear txt =
-            ChangeTo (String.toInt txt |> Maybe.withDefault current.toYear)
+            ChangeTo (String.toInt txt |> Maybe.withDefault yearRange.toYear)
     in
     div []
-        [ text "To year:"
+        [ p [] [ text "To year:" ]
         , select [ onInput changeYear ]
             (maximumYearRange
-                |> List.filter (\year -> year >= current.fromYear)
+                |> List.filter (\year -> year >= yearRange.fromYear)
                 |> List.reverse
                 |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
             )
