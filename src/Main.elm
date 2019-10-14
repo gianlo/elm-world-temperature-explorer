@@ -25,7 +25,7 @@ import LineChart.Line as Line
 type Model
     = Loading (List NationIso3) MultiData UIState
     | Failure String
-    | Complete MultiData Year
+    | Complete MultiData UIState
 
 
 type alias UIState =
@@ -99,7 +99,7 @@ update msg model =
                 Ok (GetResponse nation data) ->
                     case model of
                         Loading [] multidata uistate ->
-                            ( Complete (Dict.insert nation data multidata) uistate.fromYear, Cmd.none )
+                            ( Complete (Dict.insert nation data multidata) { uistate | selected = nation :: uistate.selected }, Cmd.none )
 
                         Loading (nextNation :: tail) multidata uistate ->
                             ( Loading tail (Dict.insert nation data multidata) { uistate | selected = nation :: uistate.selected }, fetchTemperatureData nextNation )
@@ -115,8 +115,8 @@ update msg model =
                 Loading nations multidata uistate ->
                     ( Loading nations multidata { uistate | fromYear = year }, Cmd.none )
 
-                Complete multidata _ ->
-                    ( Complete multidata year, Cmd.none )
+                Complete multidata uistate ->
+                    ( Complete multidata { uistate | fromYear = year }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -201,11 +201,11 @@ view model =
                 [ text ("failed: " ++ error)
                 ]
 
-        Complete multidata year ->
+        Complete multidata uistate ->
             div []
                 [ text "Here's the Climate Data"
-                , plotData year multidata
-                , fromYearSelector year
+                , plotData uistate.fromYear multidata
+                , fromYearSelector uistate.fromYear
                 ]
 
 
