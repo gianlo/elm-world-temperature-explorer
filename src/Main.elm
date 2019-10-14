@@ -90,6 +90,7 @@ type Msg
     = GotData (Result Http.Error GetResponse)
     | ChangeFrom Year
     | ChangeTo Year
+    | ToggleSelected NationIso3
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -132,6 +133,26 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        ToggleSelected nation ->
+            case model of
+                Loading nations multidata uistate ->
+                    ( Loading nations multidata (toggleSelected nation uistate), Cmd.none )
+
+                Complete multidata uistate ->
+                    ( Complete multidata (toggleSelected nation uistate), Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+
+toggleSelected : NationIso3 -> Selected m -> Selected m
+toggleSelected nation selection =
+    if selection.selected |> List.member nation then
+        { selection | selected = selection.selected |> List.filter (\n -> n /= nation) }
+
+    else
+        { selection | selected = nation :: selection.selected }
 
 
 encodeError error =
@@ -227,21 +248,21 @@ type alias Selected m =
     { m | selected : List NationIso3 }
 
 
-checkbox : Bool -> String -> Html msg
-checkbox isChecked name =
+checkbox : Bool -> msg -> String -> Html msg
+checkbox isChecked msg name =
     label
         []
-        [ input [ type_ "checkbox", checked isChecked ] []
+        [ input [ type_ "checkbox", checked isChecked, onClick msg ] []
         , text name
         ]
 
 
-nationSelector : List NationIso3 -> Selected m -> Html msg
+nationSelector : List NationIso3 -> Selected m -> Html Msg
 nationSelector all { selected } =
     let
-        theCheckbox : NationIso3 -> Html msg
+        theCheckbox : NationIso3 -> Html Msg
         theCheckbox nation =
-            checkbox (selected |> List.member nation) nation
+            checkbox (selected |> List.member nation) (ToggleSelected nation) nation
     in
     fieldset [] (all |> List.map theCheckbox)
 
@@ -257,50 +278,50 @@ maximumYearRange =
 
 
 yearSelector : YearRange m -> Html Msg
-yearSelector yearRange =
+yearSelector uistate =
     div []
-        [ fromYearSelector yearRange
-        , toYearSelector yearRange
+        [ fromYearSelector uistate
+        , toYearSelector uistate
         ]
 
 
 fromYearSelector : YearRange m -> Html Msg
-fromYearSelector yearRange =
+fromYearSelector uistate =
     let
         changeYear : String -> Msg
         changeYear txt =
-            ChangeFrom (String.toInt txt |> Maybe.withDefault yearRange.fromYear)
+            ChangeFrom (String.toInt txt |> Maybe.withDefault uistate.fromYear)
     in
     div []
         [ p [] [ text "From year:" ]
         , select [ onInput changeYear ]
             (maximumYearRange
-                |> List.filter (\year -> year <= yearRange.toYear)
+                |> List.filter (\year -> year <= uistate.toYear)
                 |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
             )
         ]
 
 
 toYearSelector : YearRange m -> Html Msg
-toYearSelector yearRange =
+toYearSelector uistate =
     let
         changeYear : String -> Msg
         changeYear txt =
-            ChangeTo (String.toInt txt |> Maybe.withDefault yearRange.toYear)
+            ChangeTo (String.toInt txt |> Maybe.withDefault uistate.toYear)
     in
     div []
         [ p [] [ text "To year:" ]
         , select [ onInput changeYear ]
             (maximumYearRange
-                |> List.filter (\year -> year >= yearRange.fromYear)
+                |> List.filter (\year -> year >= uistate.fromYear)
                 |> List.reverse
                 |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
             )
         ]
 
 
-plotData : YearRange m -> MultiData -> Html msg
-plotData yearRange multidata =
+plotData : UIState -> MultiData -> Html msg
+plotData uistate multidata =
     let
         colors =
             Dict.fromList [ ( 0, Colors.blue ), ( 1, Colors.red ), ( 2, Colors.green ), ( 3, Colors.black ), ( 4, Colors.gray ) ]
@@ -314,7 +335,7 @@ plotData yearRange multidata =
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
             in
-            LineChart.line color Dots.square nation (toDataPoints yearRange data)
+            LineChart.line color Dots.square nation (toDataPoints uistate data)
     in
     LineChart.viewCustom
         { x = Axis.default 700 "year" .x
@@ -330,7 +351,10 @@ plotData yearRange multidata =
         , line = Line.default
         , dots = Dots.default
         }
-        (Dict.toList multidata |> List.indexedMap (\colorIndex ( nation, data ) -> aChart colorIndex nation data))
+        (Dict.toList multidata
+            |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
+            |> List.indexedMap (\colorIndex ( nation, data ) -> aChart colorIndex nation data)
+        )
 
 
 type alias Point =
@@ -338,5 +362,5 @@ type alias Point =
 
 
 toDataPoints : YearRange m -> Data -> List Point
-toDataPoints yearRange data =
-    List.filter (\p -> p.x >= toFloat yearRange.fromYear && p.x <= toFloat yearRange.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
+toDataPoints uistate data =
+    List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
