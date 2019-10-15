@@ -32,7 +32,7 @@ view uistate =
         [ dataToPlottable uistate uistate.graphData |> plotData
         , nationSelector (Dict.keys uistate.graphData) uistate
         , yearSelector uistate
-        , nationToAddSelector
+        , nationToAddSelector uistate
         ]
 
 
@@ -286,12 +286,14 @@ toDataPoints uistate data =
     List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
 
 
-nationToAddSelector : Html msg
-nationToAddSelector =
+nationToAddSelector : State -> Html msg
+nationToAddSelector uistate =
     div []
         [ p [] [ text "Nation:" ]
         , select []
             (iso3Codes
+                |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code |> not)
                 |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
             )
+        , button [] [ text "add" ]
         ]
