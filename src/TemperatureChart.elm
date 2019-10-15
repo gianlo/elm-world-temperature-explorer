@@ -361,9 +361,43 @@ dataToPlottable uistate multidata =
                     ds |> List.filter (\{ year } -> year >= uistate.fromYear && year <= uistate.toYear)
             in
             LineChart.line color Dots.square nation (toDataPoints uistate data)
+
+        selectedTimeSeries : List ( NationIso3, Data )
+        selectedTimeSeries =
+            Dict.toList multidata
+                |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
+
+        spatialAverageTimeSeries =
+            let
+                ( _, series ) =
+                    selectedTimeSeries |> List.unzip
+
+                flattened =
+                    series |> List.concat
+
+                appendIfExisting : Float -> Maybe (List Float) -> Maybe (List Float)
+                appendIfExisting temp current =
+                    case current of
+                        Just vs ->
+                            Just (temp :: vs)
+
+                        Nothing ->
+                            Just [ temp ]
+
+                aggregationFunc : AnnualTemperature -> Dict Int (List Float) -> Dict Int (List Float)
+                aggregationFunc value acc =
+                    Dict.update value.year (appendIfExisting value.temp) acc
+
+                aggregated =
+                    flattened
+                        |> List.foldl aggregationFunc Dict.empty
+                        |> Dict.toList
+            in
+            aggregated
+                |> List.map (\( year, temps ) -> { year = year, temp = List.sum temps / toFloat (List.length temps) })
     in
-    Dict.toList multidata
-        |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
+    selectedTimeSeries
+        ++ [ ( "MEAN", spatialAverageTimeSeries ) ]
         |> List.map (\( nation, data ) -> aChart nation data)
 
 
