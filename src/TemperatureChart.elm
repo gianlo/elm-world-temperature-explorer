@@ -362,12 +362,16 @@ computeSpatialAverage selectedTimeSeries =
             flattened
                 |> List.foldl aggregationFunc Dict.empty
 
+        sampleMean : List Celsius -> Celsius
+        sampleMean temps =
+            List.sum temps / toFloat (List.length temps)
+
         -- compute the sample mean temp for each year
         spatialAverage : Data
         spatialAverage =
             aggregated
                 |> Dict.toList
-                |> List.map (\( year, temps ) -> { year = year, temp = List.sum temps / toFloat (List.length temps) })
+                |> List.map (\( year, temps ) -> { year = year, temp = sampleMean temps })
     in
     spatialAverage
 
