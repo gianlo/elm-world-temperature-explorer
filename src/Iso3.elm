@@ -9,6 +9,7 @@ type alias Iso3Record =
     { countryOrArea : String, m49Code : Int, iso3Code : NationIso3 }
 
 
+iso3Codes : List Iso3Record
 iso3Codes =
     codesTxtSource |> String.split "\n" |> List.map parseRow
 

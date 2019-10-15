@@ -224,9 +224,12 @@ checkbox isChecked msg name =
 nationSelector : List NationIso3 -> Selected m -> Html Msg
 nationSelector all { selected } =
     let
+        nationName nation =
+            iso3Codes |> List.filter (\{ iso3Code } -> iso3Code == nation) |> List.head |> Maybe.map .countryOrArea |> Maybe.withDefault "Unknown"
+
         theCheckbox : NationIso3 -> Html Msg
         theCheckbox nation =
-            checkbox (selected |> List.member nation) (ToggleSelected nation) nation
+            checkbox (selected |> List.member nation) (ToggleSelected nation) (nationName nation ++ " (" ++ nation ++ ")")
     in
     div [ class "temp-chart-nation-selector" ] [ fieldset [] (all |> List.map theCheckbox) ]
 
