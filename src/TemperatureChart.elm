@@ -1,4 +1,4 @@
-module TemperatureChart exposing (Data, Msg, MultiData, State, Year, fetchTemperatureData, init, update, view)
+module TemperatureChart exposing (Msg, State, fetchTemperatureData, init, update, view)
 
 import Debug exposing (log)
 import Dict exposing (Dict, insert)
