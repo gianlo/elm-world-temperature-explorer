@@ -1,10 +1,10 @@
-module TemperatureChart exposing (Msg, UIState, update, view)
+module TemperatureChart exposing (Data, Msg, MultiData, State, Year, dataDecoder, init, update, view)
 
 import Dict exposing (Dict, insert)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Iso3
+import Iso3 exposing (NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list, string)
 import LineChart
 import LineChart.Area as Area
@@ -21,7 +21,12 @@ import LineChart.Legends as Legends
 import LineChart.Line as Line
 
 
-view : UIState m -> Html Msg
+init : State
+init =
+    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty }
+
+
+view : State -> Html Msg
 view uistate =
     div [ class "temp-chart-view" ]
         [ dataToPlottable uistate uistate.graphData |> plotData
@@ -31,8 +36,8 @@ view uistate =
         ]
 
 
-type alias UIState m =
-    { m | fromYear : Year, toYear : Year, selected : List NationIso3, graphData : MultiData }
+type alias State =
+    { fromYear : Year, toYear : Year, selected : List NationIso3, graphData : MultiData }
 
 
 type Msg
@@ -41,17 +46,17 @@ type Msg
     | ChangeTo Year
 
 
-update : Msg -> UIState m -> ( UIState m, Cmd Msg )
+update : Msg -> State -> State
 update msg uistate =
     case msg of
         ToggleSelected nation ->
-            ( toggleSelected nation uistate, Cmd.none )
+            toggleSelected nation uistate
 
         ChangeFrom year ->
-            ( { uistate | fromYear = year }, Cmd.none )
+            { uistate | fromYear = year }
 
         ChangeTo year ->
-            ( { uistate | toYear = year }, Cmd.none )
+            { uistate | toYear = year }
 
 
 earliest : Year
@@ -72,10 +77,6 @@ type alias AnnualTemperature =
 
 type alias Data =
     List AnnualTemperature
-
-
-type alias NationIso3 =
-    String
 
 
 type alias MultiData =
@@ -215,7 +216,7 @@ simpleHash ( first, second, third ) =
         |> List.foldl (+) 0
 
 
-dataToPlottable : UIState m -> MultiData -> List (LineChart.Series Point)
+dataToPlottable : State -> MultiData -> List (LineChart.Series Point)
 dataToPlottable uistate multidata =
     let
         colors =
@@ -290,7 +291,7 @@ nationToAddSelector =
     div []
         [ p [] [ text "Nation:" ]
         , select []
-            (Iso3.iso3Codes
+            (iso3Codes
                 |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
             )
         ]

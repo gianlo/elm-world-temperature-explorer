@@ -1,8 +1,12 @@
-module Iso3 exposing (Iso3Record, iso3Codes)
+module Iso3 exposing (Iso3Record, NationIso3, iso3Codes)
+
+
+type alias NationIso3 =
+    String
 
 
 type alias Iso3Record =
-    { countryOrArea : String, m49Code : Int, iso3Code : String }
+    { countryOrArea : String, m49Code : Int, iso3Code : NationIso3 }
 
 
 iso3Codes =
