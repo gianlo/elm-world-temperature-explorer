@@ -65,6 +65,13 @@ update msg model =
                         Loading (nextNation :: tail) uistate ->
                             ( Loading tail (updateState uistate), fetchTemperatureData nextNation )
 
+                        Complete uistate ->
+                            let
+                                newState =
+                                    updateState uistate
+                            in
+                            ( Complete { newState | nationToLoad = Nothing }, Cmd.none )
+
                         _ ->
                             ( model, Cmd.none )
 
@@ -74,10 +81,18 @@ update msg model =
         TemperatureChartMsg tempCharMsg ->
             case model of
                 Loading nations uistate ->
-                    ( Loading nations (TemperatureChart.update tempCharMsg uistate), Cmd.none )
+                    let
+                        ( newUistate, cmd ) =
+                            TemperatureChart.update fetchTemperatureData tempCharMsg uistate
+                    in
+                    ( Loading nations newUistate, cmd )
 
                 Complete uistate ->
-                    ( Complete (TemperatureChart.update tempCharMsg uistate), Cmd.none )
+                    let
+                        ( newUistate, cmd ) =
+                            TemperatureChart.update fetchTemperatureData tempCharMsg uistate
+                    in
+                    ( Complete newUistate, cmd )
 
                 _ ->
                     ( model, Cmd.none )

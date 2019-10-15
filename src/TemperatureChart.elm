@@ -23,7 +23,7 @@ import LineChart.Line as Line
 
 init : State
 init =
-    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty }
+    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToLoad = Nothing }
 
 
 view : State -> Html Msg
@@ -36,27 +36,50 @@ view uistate =
         ]
 
 
+update : (NationIso3 -> Cmd msg) -> Msg -> State -> ( State, Cmd msg )
+update fetchData msg uistate =
+    case msg of
+        ToggleSelected nation ->
+            updateStateOnly (toggleSelected nation uistate)
+
+        ChangeFrom year ->
+            updateStateOnly { uistate | fromYear = year }
+
+        ChangeTo year ->
+            updateStateOnly { uistate | toYear = year }
+
+        SetNationToLoad nation ->
+            updateStateOnly { uistate | nationToLoad = Just nation }
+
+        Download ->
+            case uistate.nationToLoad of
+                Just nation ->
+                    ( uistate, fetchData nation )
+
+                Nothing ->
+                    updateStateOnly uistate
+
+
+updateStateOnly : State -> ( State, Cmd msg )
+updateStateOnly s =
+    ( s, Cmd.none )
+
+
 type alias State =
-    { fromYear : Year, toYear : Year, selected : List NationIso3, graphData : MultiData }
+    { fromYear : Year
+    , toYear : Year
+    , selected : List NationIso3
+    , graphData : MultiData
+    , nationToLoad : Maybe NationIso3
+    }
 
 
 type Msg
     = ToggleSelected NationIso3
     | ChangeFrom Year
     | ChangeTo Year
-
-
-update : Msg -> State -> State
-update msg uistate =
-    case msg of
-        ToggleSelected nation ->
-            toggleSelected nation uistate
-
-        ChangeFrom year ->
-            { uistate | fromYear = year }
-
-        ChangeTo year ->
-            { uistate | toYear = year }
+    | SetNationToLoad NationIso3
+    | Download
 
 
 earliest : Year
@@ -286,14 +309,14 @@ toDataPoints uistate data =
     List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
 
 
-nationToAddSelector : State -> Html msg
+nationToAddSelector : State -> Html Msg
 nationToAddSelector uistate =
     div []
-        [ p [] [ text "Nation:" ]
-        , select []
+        [ p [] [ text "Add another nation:" ]
+        , select [ onInput SetNationToLoad ]
             (iso3Codes
                 |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code |> not)
                 |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
             )
-        , button [] [ text "add" ]
+        , button [ onClick Download ] [ text "add" ]
         ]
