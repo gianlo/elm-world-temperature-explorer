@@ -6,6 +6,7 @@ import Html exposing (..)
 import Html.Attributes exposing (checked, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
+import Iso3
 import Json.Decode exposing (Decoder, field, float, int, list, string)
 import LineChart
 import LineChart.Area as Area
@@ -228,6 +229,7 @@ view model =
                 , plotData uistate multidata
                 , nationSelector (Dict.keys multidata) uistate
                 , yearSelector uistate
+                , nationToAddSelector
                 ]
 
         Failure error ->
@@ -241,6 +243,7 @@ view model =
                 , plotData uistate multidata
                 , nationSelector (Dict.keys multidata) uistate
                 , yearSelector uistate
+                , nationToAddSelector
                 ]
 
 
@@ -320,17 +323,65 @@ toYearSelector uistate =
         ]
 
 
+type alias ThreeLetters =
+    ( Char, Char, Char )
+
+
+stringToThreeLetters : String -> ThreeLetters
+stringToThreeLetters txt =
+    case txt |> String.toList of
+        first :: second :: third :: _ ->
+            ( first, second, third )
+
+        first :: second :: [] ->
+            ( first, second, ' ' )
+
+        first :: [] ->
+            ( first, ' ', ' ' )
+
+        _ ->
+            ( ' ', ' ', ' ' )
+
+
+simpleHash : ThreeLetters -> Int
+simpleHash ( first, second, third ) =
+    let
+        hundreds =
+            65536
+
+        tens =
+            256
+    in
+    [ ( first, 1 ), ( second, tens ), ( third, hundreds ) ]
+        |> List.map (\( ch, base ) -> base * Char.toCode ch)
+        |> List.foldl (+) 0
+
+
 plotData : UIState -> MultiData -> Html msg
 plotData uistate multidata =
     let
         colors =
-            Dict.fromList [ ( 0, Colors.blue ), ( 1, Colors.red ), ( 2, Colors.green ), ( 3, Colors.black ), ( 4, Colors.gray ) ]
+            Dict.fromList
+                [ ( 0, Colors.blue )
+                , ( 1, Colors.red )
+                , ( 2, Colors.green )
+                , ( 3, Colors.black )
+                , ( 4, Colors.gray )
+                , ( 5, Colors.gold )
+                , ( 6, Colors.pink )
+                , ( 7, Colors.purple )
+                , ( 8, Colors.rust )
+                , ( 9, Colors.teal )
+                , ( 10, Colors.strongBlue )
+                ]
 
-        aChart : Int -> NationIso3 -> Data -> LineChart.Series Point
-        aChart colorIndex nation data =
+        aChart : NationIso3 -> Data -> LineChart.Series Point
+        aChart nation data =
             let
                 modIndex =
-                    modBy (Dict.size colors) colorIndex
+                    stringToThreeLetters nation
+                        |> simpleHash
+                        |> modBy (Dict.size colors)
 
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
@@ -353,7 +404,7 @@ plotData uistate multidata =
         }
         (Dict.toList multidata
             |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
-            |> List.indexedMap (\colorIndex ( nation, data ) -> aChart colorIndex nation data)
+            |> List.map (\( nation, data ) -> aChart nation data)
         )
 
 
@@ -364,3 +415,14 @@ type alias Point =
 toDataPoints : YearRange m -> Data -> List Point
 toDataPoints uistate data =
     List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
+
+
+nationToAddSelector : Html msg
+nationToAddSelector =
+    div []
+        [ p [] [ text "Nation:" ]
+        , select []
+            (Iso3.iso3Codes
+                |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
+            )
+        ]
