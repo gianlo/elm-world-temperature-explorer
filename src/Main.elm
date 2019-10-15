@@ -70,7 +70,7 @@ update msg model =
                                 newState =
                                     updateState uistate
                             in
-                            ( Complete { newState | nationToLoad = Nothing }, Cmd.none )
+                            ( Complete newState, Cmd.none )
 
                         _ ->
                             ( model, Cmd.none )

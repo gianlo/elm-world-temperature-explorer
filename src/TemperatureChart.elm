@@ -2,7 +2,7 @@ module TemperatureChart exposing (Data, Msg, MultiData, State, Year, dataDecoder
 
 import Dict exposing (Dict, insert)
 import Html exposing (..)
-import Html.Attributes exposing (checked, class, type_, value)
+import Html.Attributes exposing (checked, class, name, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Iso3 exposing (NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list, string)
@@ -23,7 +23,7 @@ import LineChart.Line as Line
 
 init : State
 init =
-    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToLoad = Nothing }
+    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToDownload = Nothing, nationToRemove = Nothing }
 
 
 view : State -> Html Msg
@@ -32,7 +32,8 @@ view uistate =
         [ dataToPlottable uistate uistate.graphData |> plotData
         , nationSelector (Dict.keys uistate.graphData) uistate
         , yearSelector uistate
-        , nationToAddSelector uistate
+        , viewNationToAdd uistate
+        , viewNationToRemove uistate
         ]
 
 
@@ -48,16 +49,32 @@ update fetchData msg uistate =
         ChangeTo year ->
             updateStateOnly { uistate | toYear = year }
 
-        SetNationToLoad nation ->
-            updateStateOnly { uistate | nationToLoad = Just nation }
+        SetNationToDownload nation ->
+            updateStateOnly { uistate | nationToDownload = Just nation }
 
         Download ->
-            case uistate.nationToLoad of
+            case uistate.nationToDownload of
                 Just nation ->
-                    ( uistate, fetchData nation )
+                    ( { uistate | nationToDownload = Nothing }, fetchData nation )
 
                 Nothing ->
-                    updateStateOnly uistate
+                    updateStateOnly { uistate | nationToDownload = Nothing }
+
+        SetNationToRemove nation ->
+            updateStateOnly { uistate | nationToRemove = Just nation }
+
+        Remove ->
+            case uistate.nationToRemove of
+                Just nation ->
+                    updateStateOnly
+                        { uistate
+                            | selected = uistate.selected |> List.filter (\i -> i /= nation)
+                            , graphData = uistate.graphData |> Dict.remove nation
+                            , nationToRemove = Nothing
+                        }
+
+                Nothing ->
+                    updateStateOnly { uistate | nationToRemove = Nothing }
 
 
 updateStateOnly : State -> ( State, Cmd msg )
@@ -70,7 +87,8 @@ type alias State =
     , toYear : Year
     , selected : List NationIso3
     , graphData : MultiData
-    , nationToLoad : Maybe NationIso3
+    , nationToDownload : Maybe NationIso3
+    , nationToRemove : Maybe NationIso3
     }
 
 
@@ -78,8 +96,10 @@ type Msg
     = ToggleSelected NationIso3
     | ChangeFrom Year
     | ChangeTo Year
-    | SetNationToLoad NationIso3
+    | SetNationToDownload NationIso3
     | Download
+    | SetNationToRemove NationIso3
+    | Remove
 
 
 earliest : Year
@@ -309,14 +329,27 @@ toDataPoints uistate data =
     List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
 
 
-nationToAddSelector : State -> Html Msg
-nationToAddSelector uistate =
+viewNationToAdd : State -> Html Msg
+viewNationToAdd uistate =
     div []
         [ p [] [ text "Add another nation:" ]
-        , select [ onInput SetNationToLoad ]
+        , select [ onInput SetNationToDownload ]
             (iso3Codes
                 |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code |> not)
                 |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
             )
         , button [ onClick Download ] [ text "add" ]
+        ]
+
+
+viewNationToRemove : State -> Html Msg
+viewNationToRemove uistate =
+    div []
+        [ p [] [ text "Remove nation:" ]
+        , select [ onInput SetNationToRemove, name "nation" ]
+            (iso3Codes
+                |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code)
+                |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
+            )
+        , button [ onClick Remove ] [ text "remove" ]
         ]
