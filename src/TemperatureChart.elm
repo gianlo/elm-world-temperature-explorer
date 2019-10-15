@@ -1,9 +1,11 @@
-module TemperatureChart exposing (Data, Msg, MultiData, State, Year, dataDecoder, init, update, view)
+module TemperatureChart exposing (Data, Msg, MultiData, State, Year, fetchTemperatureData, init, update, view)
 
+import Debug exposing (log)
 import Dict exposing (Dict, insert)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, name, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (on, onClick, onInput, stopPropagationOn, targetValue)
+import Http
 import Iso3 exposing (NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list, string)
 import LineChart
@@ -37,8 +39,8 @@ view uistate =
         ]
 
 
-update : (NationIso3 -> Cmd msg) -> Msg -> State -> ( State, Cmd msg )
-update fetchData msg uistate =
+update : Msg -> State -> ( State, Cmd Msg )
+update msg uistate =
     case msg of
         ToggleSelected nation ->
             updateStateOnly (toggleSelected nation uistate)
@@ -55,7 +57,7 @@ update fetchData msg uistate =
         Download ->
             case uistate.nationToDownload of
                 Just nation ->
-                    ( { uistate | nationToDownload = Nothing }, fetchData nation )
+                    ( { uistate | nationToDownload = Nothing }, fetchTemperatureData nation )
 
                 Nothing ->
                     updateStateOnly { uistate | nationToDownload = Nothing }
@@ -75,6 +77,58 @@ update fetchData msg uistate =
 
                 Nothing ->
                     updateStateOnly { uistate | nationToRemove = Nothing }
+
+        GotData result ->
+            case result of
+                Ok (GetResponse nation data) ->
+                    updateStateOnly { uistate | selected = nation :: uistate.selected, graphData = Dict.insert nation data uistate.graphData }
+
+                Err error ->
+                    let
+                        errorReason =
+                            error |> encodeError
+                    in
+                    updateStateOnly (log errorReason uistate)
+
+
+dataUrl : String
+dataUrl =
+    "http://climatedataapi.worldbank.org/climateweb/rest/v1/country/cru/tas/year/"
+
+
+type GetResponse
+    = GetResponse NationIso3 Data
+
+
+encodeError error =
+    case error of
+        Http.BadUrl url ->
+            "BadUrl: " ++ url
+
+        Http.Timeout ->
+            "Timeout"
+
+        Http.NetworkError ->
+            "NetworkError"
+
+        Http.BadStatus code ->
+            "BadStatus: " ++ String.fromInt code
+
+        Http.BadBody body ->
+            "BadBody: " ++ body
+
+
+fetchTemperatureData : NationIso3 -> Cmd Msg
+fetchTemperatureData nation =
+    let
+        transform : Result Http.Error Data -> Msg
+        transform result =
+            GotData (Result.map (\data -> GetResponse nation data) result)
+    in
+    Http.get
+        { url = dataUrl ++ nation
+        , expect = Http.expectJson transform dataDecoder
+        }
 
 
 updateStateOnly : State -> ( State, Cmd msg )
@@ -100,6 +154,7 @@ type Msg
     | Download
     | SetNationToRemove NationIso3
     | Remove
+    | GotData (Result Http.Error GetResponse)
 
 
 earliest : Year
@@ -342,11 +397,22 @@ viewNationToAdd uistate =
         ]
 
 
+onChange : (String -> msg) -> Attribute msg
+onChange tagger =
+    stopPropagationOn "change" <|
+        Json.Decode.map alwaysStop (Json.Decode.map tagger targetValue)
+
+
+alwaysStop : a -> ( a, Bool )
+alwaysStop x =
+    ( x, True )
+
+
 viewNationToRemove : State -> Html Msg
 viewNationToRemove uistate =
     div []
         [ p [] [ text "Remove nation:" ]
-        , select [ onInput SetNationToRemove, name "nation" ]
+        , select [ onChange SetNationToRemove, name "nation" ]
             (iso3Codes
                 |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code)
                 |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])

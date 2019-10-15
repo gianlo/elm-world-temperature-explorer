@@ -13,7 +13,6 @@ import TemperatureChart
 
 type Model
     = Loading (List NationIso3) UIState
-    | Failure String
     | Complete UIState
 
 
@@ -23,7 +22,7 @@ type alias UIState =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] TemperatureChart.init, fetchTemperatureData "GBR" )
+    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] TemperatureChart.init, TemperatureChart.fetchTemperatureData "GBR" |> Cmd.map TemperatureChartMsg )
 
 
 main =
@@ -39,104 +38,40 @@ main =
 -- UPDATE
 
 
-type GetResponse
-    = GetResponse NationIso3 TemperatureChart.Data
-
-
 type Msg
-    = GotData (Result Http.Error GetResponse)
-    | TemperatureChartMsg TemperatureChart.Msg
+    = TemperatureChartMsg TemperatureChart.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotData result ->
-            case result of
-                Ok (GetResponse nation data) ->
-                    let
-                        updateState uistate =
-                            { uistate | selected = nation :: uistate.selected, graphData = Dict.insert nation data uistate.graphData }
-                    in
-                    case model of
-                        Loading [] uistate ->
-                            ( Complete (updateState uistate), Cmd.none )
-
-                        Loading (nextNation :: tail) uistate ->
-                            ( Loading tail (updateState uistate), fetchTemperatureData nextNation )
-
-                        Complete uistate ->
-                            let
-                                newState =
-                                    updateState uistate
-                            in
-                            ( Complete newState, Cmd.none )
-
-                        _ ->
-                            ( model, Cmd.none )
-
-                Err error ->
-                    error |> encodeError |> errorEncoding
-
         TemperatureChartMsg tempCharMsg ->
             case model of
-                Loading nations uistate ->
+                Loading [] uistate ->
                     let
                         ( newUistate, cmd ) =
-                            TemperatureChart.update fetchTemperatureData tempCharMsg uistate
+                            TemperatureChart.update tempCharMsg uistate
                     in
-                    ( Loading nations newUistate, cmd )
+                    ( Complete newUistate, cmd |> Cmd.map TemperatureChartMsg )
+
+                Loading (nation :: others) uistate ->
+                    let
+                        ( newUistate, cmd ) =
+                            TemperatureChart.update tempCharMsg uistate
+                    in
+                    ( Loading others newUistate, [ cmd, TemperatureChart.fetchTemperatureData nation ] |> Cmd.batch |> Cmd.map TemperatureChartMsg )
 
                 Complete uistate ->
                     let
                         ( newUistate, cmd ) =
-                            TemperatureChart.update fetchTemperatureData tempCharMsg uistate
+                            TemperatureChart.update tempCharMsg uistate
                     in
-                    ( Complete newUistate, cmd )
-
-                _ ->
-                    ( model, Cmd.none )
+                    ( Complete newUistate, cmd |> Cmd.map TemperatureChartMsg )
 
 
-encodeError error =
-    case error of
-        Http.BadUrl url ->
-            "BadUrl: " ++ url
-
-        Http.Timeout ->
-            "Timeout"
-
-        Http.NetworkError ->
-            "NetworkError"
-
-        Http.BadStatus code ->
-            "BadStatus: " ++ String.fromInt code
-
-        Http.BadBody body ->
-            "BadBody: " ++ body
-
-
-errorEncoding : String -> ( Model, Cmd msg )
-errorEncoding txt =
-    ( Failure txt, Cmd.none )
-
-
-dataUrl : String
-dataUrl =
-    "http://climatedataapi.worldbank.org/climateweb/rest/v1/country/cru/tas/year/"
-
-
-fetchTemperatureData : NationIso3 -> Cmd Msg
-fetchTemperatureData nation =
-    let
-        transform : Result Http.Error TemperatureChart.Data -> Msg
-        transform result =
-            GotData (Result.map (\data -> GetResponse nation data) result)
-    in
-    Http.get
-        { url = dataUrl ++ nation
-        , expect = Http.expectJson transform TemperatureChart.dataDecoder
-        }
+updateStateOnly : mdl -> ( mdl, Cmd msg )
+updateStateOnly model =
+    ( model, Cmd.none )
 
 
 
@@ -159,11 +94,6 @@ view model =
             div []
                 [ text ("still loading: " ++ String.join ", " nations)
                 , TemperatureChart.view uistate |> Html.map TemperatureChartMsg
-                ]
-
-        Failure error ->
-            div []
-                [ text ("failed: " ++ error)
                 ]
 
         Complete uistate ->
