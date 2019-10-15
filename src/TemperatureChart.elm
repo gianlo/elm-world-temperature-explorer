@@ -167,9 +167,13 @@ latest =
     2030
 
 
+type alias Celsius =
+    Float
+
+
 type alias AnnualTemperature =
-    { year : Int
-    , temp : Float
+    { year : Year
+    , temp : Celsius
     }
 
 
@@ -327,6 +331,47 @@ simpleHash ( first, second, third ) =
         |> List.foldl (+) 0
 
 
+computeSpatialAverage : List ( NationIso3, Data ) -> Data
+computeSpatialAverage selectedTimeSeries =
+    let
+        -- extract only time series
+        ( _, series ) =
+            selectedTimeSeries |> List.unzip
+
+        -- flatten all the timeseries in a big one :-)
+        flattened : Data
+        flattened =
+            series |> List.concat
+
+        appendIfExisting : Celsius -> Maybe (List Celsius) -> Maybe (List Celsius)
+        appendIfExisting temp current =
+            case current of
+                Just vs ->
+                    Just (temp :: vs)
+
+                Nothing ->
+                    Just [ temp ]
+
+        aggregationFunc : AnnualTemperature -> Dict Year (List Celsius) -> Dict Year (List Celsius)
+        aggregationFunc value acc =
+            Dict.update value.year (appendIfExisting value.temp) acc
+
+        -- collect for each year all relevant temp measurements
+        aggregated : Dict Year (List Celsius)
+        aggregated =
+            flattened
+                |> List.foldl aggregationFunc Dict.empty
+
+        -- compute the sample mean temp for each year
+        spatialAverage : Data
+        spatialAverage =
+            aggregated
+                |> Dict.toList
+                |> List.map (\( year, temps ) -> { year = year, temp = List.sum temps / toFloat (List.length temps) })
+    in
+    spatialAverage
+
+
 dataToPlottable : State -> MultiData -> List (LineChart.Series Point)
 dataToPlottable uistate multidata =
     let
@@ -368,33 +413,7 @@ dataToPlottable uistate multidata =
                 |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
 
         spatialAverageTimeSeries =
-            let
-                ( _, series ) =
-                    selectedTimeSeries |> List.unzip
-
-                flattened =
-                    series |> List.concat
-
-                appendIfExisting : Float -> Maybe (List Float) -> Maybe (List Float)
-                appendIfExisting temp current =
-                    case current of
-                        Just vs ->
-                            Just (temp :: vs)
-
-                        Nothing ->
-                            Just [ temp ]
-
-                aggregationFunc : AnnualTemperature -> Dict Int (List Float) -> Dict Int (List Float)
-                aggregationFunc value acc =
-                    Dict.update value.year (appendIfExisting value.temp) acc
-
-                aggregated =
-                    flattened
-                        |> List.foldl aggregationFunc Dict.empty
-                        |> Dict.toList
-            in
-            aggregated
-                |> List.map (\( year, temps ) -> { year = year, temp = List.sum temps / toFloat (List.length temps) })
+            computeSpatialAverage selectedTimeSeries
     in
     selectedTimeSeries
         ++ [ ( "MEAN", spatialAverageTimeSeries ) ]
