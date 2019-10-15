@@ -67,9 +67,6 @@ liftTemperatureChartUpdate msg uistate transition extraCmds =
 
 
 
--- updateStateOnly : mdl -> ( mdl, Cmd msg )
--- updateStateOnly model =
---     ( model, Cmd.none )
 -- SUBSCRIPTIONS
 
 

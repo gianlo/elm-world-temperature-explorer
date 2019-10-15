@@ -224,14 +224,24 @@ checkbox isChecked msg name =
 nationSelector : List NationIso3 -> Selected m -> Html Msg
 nationSelector all { selected } =
     let
-        nationName nation =
-            iso3Codes |> List.filter (\{ iso3Code } -> iso3Code == nation) |> List.head |> Maybe.map .countryOrArea |> Maybe.withDefault "Unknown"
+        getNationName nation =
+            iso3Codes
+                |> List.filter (\{ iso3Code } -> iso3Code == nation)
+                |> List.head
+                |> Maybe.map .countryOrArea
+                |> Maybe.withDefault "Unknown"
 
-        theCheckbox : NationIso3 -> Html Msg
-        theCheckbox nation =
-            checkbox (selected |> List.member nation) (ToggleSelected nation) (nationName nation ++ " (" ++ nation ++ ")")
+        ( isoCodes, nationNames ) =
+            all
+                |> List.map (\iso3Code -> ( iso3Code, getNationName iso3Code ))
+                |> List.sortBy (\( _, nationName ) -> nationName)
+                |> List.unzip
+
+        theCheckbox : NationIso3 -> String -> Html Msg
+        theCheckbox iso3Code nation =
+            checkbox (selected |> List.member iso3Code) (ToggleSelected iso3Code) (nation ++ " (" ++ iso3Code ++ ")")
     in
-    div [ class "temp-chart-nation-selector" ] [ fieldset [] (all |> List.map theCheckbox) ]
+    div [ class "temp-chart-nation-selector" ] [ fieldset [] (List.map2 theCheckbox isoCodes nationNames) ]
 
 
 maximumYearRange : List Year
