@@ -48,33 +48,28 @@ update msg model =
         TemperatureChartMsg tempCharMsg ->
             case model of
                 Loading [] uistate ->
-                    let
-                        ( newUistate, cmd ) =
-                            TemperatureChart.update tempCharMsg uistate
-                    in
-                    ( Complete newUistate, cmd |> Cmd.map TemperatureChartMsg )
+                    liftTemperatureChartUpdate tempCharMsg uistate Complete []
 
                 Loading (nation :: others) uistate ->
-                    let
-                        ( newUistate, cmd ) =
-                            TemperatureChart.update tempCharMsg uistate
-                    in
-                    ( Loading others newUistate, [ cmd, TemperatureChart.fetchTemperatureData nation ] |> Cmd.batch |> Cmd.map TemperatureChartMsg )
+                    liftTemperatureChartUpdate tempCharMsg uistate (Loading others) [ TemperatureChart.fetchTemperatureData nation ]
 
                 Complete uistate ->
-                    let
-                        ( newUistate, cmd ) =
-                            TemperatureChart.update tempCharMsg uistate
-                    in
-                    ( Complete newUistate, cmd |> Cmd.map TemperatureChartMsg )
+                    liftTemperatureChartUpdate tempCharMsg uistate Complete []
 
 
-updateStateOnly : mdl -> ( mdl, Cmd msg )
-updateStateOnly model =
-    ( model, Cmd.none )
+liftTemperatureChartUpdate : TemperatureChart.Msg -> TemperatureChart.State -> (TemperatureChart.State -> Model) -> List (Cmd TemperatureChart.Msg) -> ( Model, Cmd Msg )
+liftTemperatureChartUpdate msg uistate transition extraCmds =
+    let
+        ( newUistate, cmd ) =
+            TemperatureChart.update msg uistate
+    in
+    ( transition newUistate, [ cmd ] ++ extraCmds |> Cmd.batch |> Cmd.map TemperatureChartMsg )
 
 
 
+-- updateStateOnly : mdl -> ( mdl, Cmd msg )
+-- updateStateOnly model =
+--     ( model, Cmd.none )
 -- SUBSCRIPTIONS
 
 
