@@ -6,14 +6,14 @@ import Html exposing (..)
 import Html.Attributes exposing (checked, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
-import Iso3 exposing (NationIso3)
+import Iso3 exposing (NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list, string)
+import Random
 import TemperatureChart
 
 
 type Model
-    = Loading (List NationIso3) UIState
-    | Complete UIState
+    = Model UIState
 
 
 type alias UIState =
@@ -22,7 +22,22 @@ type alias UIState =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Loading [ "NOR", "ITA", "DZA", "ZAF" ] TemperatureChart.init, TemperatureChart.fetchTemperatureData "GBR" |> Cmd.map TemperatureChartMsg )
+    ( Model TemperatureChart.init, [ loadNation "GBR", pickRandomCountry 4 ] |> Cmd.batch )
+
+
+loadNation : NationIso3 -> Cmd Msg
+loadNation nation =
+    TemperatureChart.fetchTemperatureData nation |> Cmd.map TemperatureChartMsg
+
+
+getNationFromIndex : Int -> NationIso3
+getNationFromIndex n =
+    case iso3Codes |> List.drop (n - 1) of
+        head :: _ ->
+            head.iso3Code
+
+        _ ->
+            "GBR"
 
 
 main =
@@ -40,6 +55,17 @@ main =
 
 type Msg
     = TemperatureChartMsg TemperatureChart.Msg
+    | GetSampleNation Int Int
+
+
+numberOfCountries : Int
+numberOfCountries =
+    iso3Codes |> List.length
+
+
+pickRandomCountry : Int -> Cmd Msg
+pickRandomCountry remaining =
+    Random.generate (GetSampleNation remaining) (Random.int 0 (numberOfCountries - 1))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -47,14 +73,26 @@ update msg model =
     case msg of
         TemperatureChartMsg tempCharMsg ->
             case model of
-                Loading [] uistate ->
-                    liftTemperatureChartUpdate tempCharMsg uistate Complete []
+                Model uistate ->
+                    liftTemperatureChartUpdate tempCharMsg uistate Model []
 
-                Loading (nation :: others) uistate ->
-                    liftTemperatureChartUpdate tempCharMsg uistate (Loading others) [ TemperatureChart.fetchTemperatureData nation ]
+        GetSampleNation remaining nationIndex ->
+            case model of
+                Model uistate ->
+                    let
+                        newCountry =
+                            getNationFromIndex nationIndex
 
-                Complete uistate ->
-                    liftTemperatureChartUpdate tempCharMsg uistate Complete []
+                        loadNewNation =
+                            loadNation newCountry
+                    in
+                    if remaining > 1 then
+                        -- pick another country and load this one
+                        ( Model uistate, [ pickRandomCountry (remaining - 1), loadNewNation ] |> Cmd.batch )
+
+                    else
+                        -- load this one
+                        ( Model uistate, loadNewNation )
 
 
 liftTemperatureChartUpdate : TemperatureChart.Msg -> TemperatureChart.State -> (TemperatureChart.State -> Model) -> List (Cmd TemperatureChart.Msg) -> ( Model, Cmd Msg )
@@ -82,13 +120,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     case model of
-        Loading nations uistate ->
-            div []
-                [ text ("still loading: " ++ String.join ", " nations)
-                , TemperatureChart.view uistate |> Html.map TemperatureChartMsg
-                ]
-
-        Complete uistate ->
+        Model uistate ->
             div []
                 [ text "Here's the Climate Data"
                 , TemperatureChart.view uistate |> Html.map TemperatureChartMsg
