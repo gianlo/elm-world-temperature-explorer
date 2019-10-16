@@ -86,7 +86,11 @@ update msg model =
                         loadNewNation =
                             loadNation newCountry
                     in
-                    if remaining > 1 then
+                    if List.member newCountry (Dict.keys uistate.graphData) then
+                        -- country already loaded, sample another one
+                        ( Model uistate, pickRandomCountry remaining )
+
+                    else if remaining > 1 then
                         -- pick another country and load this one
                         ( Model uistate, [ pickRandomCountry (remaining - 1), loadNewNation ] |> Cmd.batch )
 
