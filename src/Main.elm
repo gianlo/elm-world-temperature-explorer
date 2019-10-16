@@ -1,13 +1,10 @@
 module Main exposing (main)
 
 import Browser
-import Dict exposing (Dict, insert)
+import Dict
 import Html exposing (..)
-import Html.Attributes exposing (checked, type_, value)
-import Html.Events exposing (onClick, onInput)
 import Http
 import Iso3 exposing (NationIso3, iso3Codes)
-import Json.Decode exposing (Decoder, field, float, int, list, string)
 import Random
 import TemperatureChart
 
@@ -74,7 +71,8 @@ update msg model =
         TemperatureChartMsg tempCharMsg ->
             case model of
                 Model uistate ->
-                    liftTemperatureChartUpdate tempCharMsg uistate Model []
+                    TemperatureChart.update tempCharMsg uistate
+                        |> Tuple.mapBoth Model (Cmd.map TemperatureChartMsg)
 
         GetSampleNation remaining nationIndex ->
             case model of
@@ -97,15 +95,6 @@ update msg model =
                     else
                         -- load this one
                         ( Model uistate, loadNewNation )
-
-
-liftTemperatureChartUpdate : TemperatureChart.Msg -> TemperatureChart.State -> (TemperatureChart.State -> Model) -> List (Cmd TemperatureChart.Msg) -> ( Model, Cmd Msg )
-liftTemperatureChartUpdate msg uistate transition extraCmds =
-    let
-        ( newUistate, cmd ) =
-            TemperatureChart.update msg uistate
-    in
-    ( transition newUistate, [ cmd ] ++ extraCmds |> Cmd.batch |> Cmd.map TemperatureChartMsg )
 
 
 
