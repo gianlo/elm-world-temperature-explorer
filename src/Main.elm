@@ -18,6 +18,7 @@ init _ =
     ( TemperatureChart.init, [ loadNation "GBR", pickRandomCountry 4 ] |> Cmd.batch )
 
 
+main : Program () Model Msg
 main =
     Browser.element
         { init = init
