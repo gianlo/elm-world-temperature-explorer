@@ -86,7 +86,7 @@ numberOfCountries =
 
 pickRandomCountry : Int -> Cmd Msg
 pickRandomCountry remaining =
-    Random.generate (GetSampleNation remaining) (Random.int 0 (numberOfCountries - 1))
+    Random.generate (GetSampleNation remaining) (Random.int 1 numberOfCountries)
 
 
 

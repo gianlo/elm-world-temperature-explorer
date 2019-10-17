@@ -241,9 +241,17 @@ nationSelector all { selected } =
                 |> List.sortBy (\( _, nationName ) -> nationName)
                 |> List.unzip
 
+        shortenName : String -> String
+        shortenName name =
+            if String.length name <= 12 then
+                name
+
+            else
+                String.slice 0 12 name ++ "..."
+
         theCheckbox : NationIso3 -> String -> Html Msg
         theCheckbox iso3Code nation =
-            checkbox (selected |> List.member iso3Code) (ToggleSelected iso3Code) (nation ++ " (" ++ iso3Code ++ ")")
+            checkbox (selected |> List.member iso3Code) (ToggleSelected iso3Code) (shortenName nation ++ " (" ++ iso3Code ++ ")")
     in
     div [ class "temp-chart-nation-selector" ] [ fieldset [] (List.map2 theCheckbox isoCodes nationNames) ]
 
