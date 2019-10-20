@@ -7,6 +7,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Iso3 exposing (iso3Codes)
 import TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update)
 
 
@@ -28,7 +29,7 @@ elementView model =
     Element.el []
         (Element.column []
             [ Element.el [ Element.centerX, Font.bold, Font.size 24, Font.family [ Font.monospace ] ] (Element.text "Yearly average temperature")
-            , Element.row [ Element.padding 5, Element.spacing 10, Element.width Element.fill ] [ plotView model, plotNationsView model ]
+            , Element.row [ Element.padding 5, Element.spacing 10, Element.width Element.fill ] [ plotView model, nationsSelectorView model ]
             , Element.row [ Element.padding 5, Element.spacing 10, Element.width Element.fill ] [ dateSelectorView model, nationAdderView model ]
             ]
         )
@@ -134,9 +135,28 @@ nationAdderView model =
         ]
 
 
-plotNationsView : State -> Element Msg
-plotNationsView model =
+getNationName : Iso3.NationIso3 -> String
+getNationName nation =
+    iso3Codes
+        |> List.filter (\{ iso3Code } -> iso3Code == nation)
+        |> List.head
+        |> Maybe.map .countryOrArea
+        |> Maybe.withDefault "Unknown"
+
+
+shortenName : String -> String
+shortenName name =
+    if String.length name <= 12 then
+        name
+
+    else
+        String.slice 0 12 name ++ "..."
+
+
+nationsSelectorView : State -> Element Msg
+nationsSelectorView model =
     let
+        remove : Iso3.NationIso3 -> Element Msg
         remove nation =
             Input.button
                 [ Element.padding 5
@@ -144,22 +164,34 @@ plotNationsView model =
                 , Border.rounded 3
                 , Element.alignRight
                 ]
-                { label = Element.text "remove"
+                { label = Element.text "✕"
                 , onPress = Just <| RemoveNation nation
                 }
 
-        check nation =
-            Input.checkbox []
-                { onChange = \_ -> ToggleSelected nation
+        check : Iso3.NationIso3 -> String -> Element Msg
+        check iso3Code nationName =
+            Input.checkbox [ Element.alignLeft ]
+                { onChange = \_ -> ToggleSelected iso3Code
                 , icon = Input.defaultCheckbox
-                , checked = model.selected |> List.member nation
-                , label = Input.labelRight [] (Element.text nation)
+                , checked = model.selected |> List.member iso3Code
+                , label = Input.labelRight [] (Element.text nationName)
                 }
 
+        rowStyle : List (Element.Attribute msg)
+        rowStyle =
+            [ Element.spacing 5, Element.width Element.fill, Element.padding 3 ]
+
+        oneRow : ( Iso3.NationIso3, String ) -> Element Msg
+        oneRow ( iso3Code, nationName ) =
+            Element.row rowStyle [ check iso3Code (shortenName nationName), remove iso3Code ]
+
+        rows : List (Element Msg)
         rows =
             model.graphData
                 |> Dict.keys
-                |> List.map (\nation -> Element.row [ Element.spacing 5, Element.width Element.fill, Element.padding 3 ] [ check nation, remove nation ])
+                |> List.map (\iso3Code -> ( iso3Code, getNationName iso3Code ))
+                |> List.sortBy (\( _, nationName ) -> nationName)
+                |> List.map oneRow
     in
     Element.column [ Element.alignRight ] rows
 
