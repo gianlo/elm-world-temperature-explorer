@@ -1,13 +1,13 @@
 module TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update, view)
 
 import Debug exposing (log)
-import Dict exposing (Dict, insert)
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (checked, class, name, type_, value)
-import Html.Events exposing (on, onClick, onInput, stopPropagationOn, targetValue)
+import Html.Events exposing (onClick, onInput, stopPropagationOn, targetValue)
 import Http
 import Iso3 exposing (NationIso3, iso3Codes)
-import Json.Decode exposing (Decoder, field, float, int, list, string)
+import Json.Decode exposing (Decoder, field, float, int, list)
 import LineChart
 import LineChart.Area as Area
 import LineChart.Axis as Axis
@@ -422,16 +422,13 @@ dataToPlottable uistate =
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
 
-                dateFilter : Data -> Data
-                dateFilter ds =
-                    ds |> List.filter (\{ year } -> year >= uistate.fromYear && year <= uistate.toYear)
             in
             LineChart.line color Dots.square nation (toDataPoints uistate data)
 
         selectedTimeSeries : List ( NationIso3, Data )
         selectedTimeSeries =
             Dict.toList uistate.graphData
-                |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
+                |> List.filter (\( nation, _ ) -> uistate.selected |> List.member nation)
 
         spatialAverageTimeSeries =
             if List.length selectedTimeSeries > 1 then

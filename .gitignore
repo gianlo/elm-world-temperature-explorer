@@ -1,2 +1,4 @@
 dist/
 elm-stuff/
+.idea
+*.iml

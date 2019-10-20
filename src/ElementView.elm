@@ -7,7 +7,6 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
-import Iso3 exposing (NationIso3, iso3Codes)
 import TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update)
 
 
@@ -37,7 +36,7 @@ elementView model =
 
 dateSelectorView : State -> Element Msg
 dateSelectorView model =
-    Element.column [ Element.padding 5, Element.spacing 10 ] [ fromYearSelectorView model, toYearSelectorView model ]
+    Element.column [ Element.padding 5, Element.spacing 10, Element.alignLeft ] [ fromYearSelectorView model, toYearSelectorView model ]
 
 
 lightGrey =
@@ -111,6 +110,7 @@ nationAdderView model =
                 [ Element.padding 5
                 , Background.color lightGrey
                 , Border.rounded 3
+                , Element.alignRight
                 ]
                 { label = Element.text "add"
                 , onPress = Just Download
@@ -134,13 +134,6 @@ nationAdderView model =
         ]
 
 
-searchNationByName : String -> List NationIso3
-searchNationByName nationName =
-    iso3Codes
-        |> List.filter (\code -> code.countryOrArea |> String.toLower |> String.startsWith (nationName |> String.toLower))
-        |> List.map .iso3Code
-
-
 plotNationsView : State -> Element Msg
 plotNationsView model =
     let
@@ -149,6 +142,7 @@ plotNationsView model =
                 [ Element.padding 5
                 , Background.color lightGrey
                 , Border.rounded 3
+                , Element.alignRight
                 ]
                 { label = Element.text "remove"
                 , onPress = Just <| RemoveNation nation
@@ -165,11 +159,11 @@ plotNationsView model =
         rows =
             model.graphData
                 |> Dict.keys
-                |> List.map (\nation -> Element.row [ Element.spacing 3, Element.width Element.fill ] [ check nation, remove nation ])
+                |> List.map (\nation -> Element.row [ Element.spacing 5, Element.width Element.fill, Element.padding 3 ] [ check nation, remove nation ])
     in
-    Element.column [] rows
+    Element.column [ Element.alignRight ] rows
 
 
 plotView : State -> Element msg
 plotView model =
-    Element.el [] (dataToPlottable model |> plotData |> Element.html)
+    Element.el [ Element.alignLeft ] (dataToPlottable model |> plotData |> Element.html)

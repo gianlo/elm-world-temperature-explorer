@@ -3,7 +3,6 @@ module Main exposing (main)
 import Browser
 import Dict
 import Html exposing (..)
-import Http
 import Iso3 exposing (NationIso3, iso3Codes)
 import Random
 import TemperatureChart
@@ -95,7 +94,7 @@ pickRandomCountry remaining =
 
 
 subscriptions : Model -> Sub msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
