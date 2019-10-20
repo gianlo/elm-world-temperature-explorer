@@ -434,10 +434,14 @@ dataToPlottable uistate =
                 |> List.filter (\( nation, data ) -> uistate.selected |> List.member nation)
 
         spatialAverageTimeSeries =
-            computeSpatialAverage selectedTimeSeries
+            if List.length selectedTimeSeries > 1 then
+                [ ( "MEAN", computeSpatialAverage selectedTimeSeries ) ]
+
+            else
+                []
     in
     selectedTimeSeries
-        ++ [ ( "MEAN", spatialAverageTimeSeries ) ]
+        ++ spatialAverageTimeSeries
         |> List.map (\( nation, data ) -> aChart nation data)
 
 

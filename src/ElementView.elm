@@ -71,7 +71,7 @@ fromYearSelectorView model =
             , max = toFloat model.toYear
             , value = toFloat model.fromYear
             , thumb = Input.defaultThumb
-            , step = Just 5.0
+            , step = Just 10
             }
     in
     Input.slider sliderStyle cfg
@@ -89,7 +89,7 @@ toYearSelectorView model =
             , max = toFloat latest
             , value = toFloat model.toYear
             , thumb = Input.defaultThumb
-            , step = Just 5.0
+            , step = Just 10
             }
     in
     Input.slider sliderStyle cfg
