@@ -80,10 +80,10 @@ update msg uistate =
         Download ->
             case uistate.nationToDownload of
                 Just nation ->
-                    ( { uistate | nationToDownload = Nothing }, String.toUpper nation |> fetchTemperatureData )
+                    ( { uistate | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
 
                 Nothing ->
-                    updateStateOnly { uistate | nationToDownload = Nothing }
+                    updateStateOnly { uistate | nationToDownload = Nothing, nationLookUpResult = [] }
 
         SetNationToRemove nation ->
             updateStateOnly { uistate | nationToRemove = Just nation }
