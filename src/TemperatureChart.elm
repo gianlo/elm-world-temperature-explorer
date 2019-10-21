@@ -6,7 +6,7 @@ import Html exposing (..)
 import Html.Attributes exposing (checked, class, name, type_, value)
 import Html.Events exposing (onClick, onInput, stopPropagationOn, targetValue)
 import Http
-import Iso3 exposing (NationIso3, iso3Codes)
+import Iso3 exposing (Iso3Record, NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list)
 import LineChart
 import LineChart.Area as Area
@@ -30,12 +30,13 @@ type alias State =
     , graphData : MultiData
     , nationToDownload : Maybe NationIso3
     , nationToRemove : Maybe NationIso3
+    , nationLookUpResult : List Iso3Record
     }
 
 
 init : State
 init =
-    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToDownload = Nothing, nationToRemove = Nothing }
+    { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToDownload = Nothing, nationToRemove = Nothing, nationLookUpResult = [] }
 
 
 view : State -> Html Msg
@@ -62,7 +63,19 @@ update msg uistate =
             updateStateOnly { uistate | toYear = year }
 
         SetNationToDownload nation ->
-            updateStateOnly { uistate | nationToDownload = Just nation }
+            let
+                matching : { a | countryOrArea : String } -> Bool
+                matching { countryOrArea } =
+                    String.startsWith (String.toLower nation) (String.toLower countryOrArea)
+
+                found =
+                    if String.length nation >= 3 then
+                        iso3Codes |> List.filter matching
+
+                    else
+                        []
+            in
+            updateStateOnly { uistate | nationToDownload = Just nation, nationLookUpResult = found }
 
         Download ->
             case uistate.nationToDownload of
@@ -421,7 +434,6 @@ dataToPlottable uistate =
 
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
-
             in
             LineChart.line color Dots.square nation (toDataPoints uistate data)
 

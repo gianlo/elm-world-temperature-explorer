@@ -11,6 +11,7 @@ import Iso3 exposing (iso3Codes)
 import TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update)
 
 
+initialLoads : Cmd Msg
 initialLoads =
     [ "GBR", "ITA", "NOR", "USA" ] |> List.map fetchTemperatureData |> Cmd.batch
 
@@ -40,10 +41,12 @@ dateSelectorView model =
     Element.column [ Element.padding 5, Element.spacing 10, Element.alignLeft ] [ fromYearSelectorView model, toYearSelectorView model ]
 
 
+lightGrey : Element.Color
 lightGrey =
     Element.rgb255 192 192 192
 
 
+sliderStyle : List (Element.Attribute msg)
 sliderStyle =
     [ Element.height (Element.px 30)
     , Element.behindContent
@@ -95,14 +98,6 @@ toYearSelectorView model =
     Input.slider sliderStyle cfg
 
 
-blue =
-    Element.rgb255 0 0 238
-
-
-purple =
-    Element.rgb255 238 0 238
-
-
 nationAdderView : State -> Element Msg
 nationAdderView model =
     let
@@ -129,7 +124,7 @@ nationAdderView model =
                 , label = Input.labelLeft [] (Element.text "Nation to add:")
                 }
     in
-    Element.row [ Element.spacing 5, Element.width Element.fill ]
+    Element.row [ Element.spacing 5, Element.width Element.fill, Element.alignRight ]
         [ textInput
         , button
         ]
@@ -156,8 +151,8 @@ shortenName name =
 nationsSelectorView : State -> Element Msg
 nationsSelectorView model =
     let
-        remove : Iso3.NationIso3 -> Element Msg
-        remove nation =
+        removeButton : Iso3.NationIso3 -> Element Msg
+        removeButton nation =
             Input.button
                 [ Element.padding 5
                 , Background.color lightGrey
@@ -168,8 +163,8 @@ nationsSelectorView model =
                 , onPress = Just <| RemoveNation nation
                 }
 
-        check : Iso3.NationIso3 -> String -> Element Msg
-        check iso3Code nationName =
+        checkBox : Iso3.NationIso3 -> String -> Element Msg
+        checkBox iso3Code nationName =
             Input.checkbox [ Element.alignLeft ]
                 { onChange = \_ -> ToggleSelected iso3Code
                 , icon = Input.defaultCheckbox
@@ -183,7 +178,7 @@ nationsSelectorView model =
 
         oneRow : ( Iso3.NationIso3, String ) -> Element Msg
         oneRow ( iso3Code, nationName ) =
-            Element.row rowStyle [ check iso3Code (shortenName nationName), remove iso3Code ]
+            Element.row rowStyle [ checkBox iso3Code (shortenName nationName), removeButton iso3Code ]
 
         rows : List (Element Msg)
         rows =
