@@ -50,6 +50,19 @@ view uistate =
         ]
 
 
+type Msg
+    = ToggleSelected NationIso3
+    | ChangeFrom Year
+    | ChangeTo Year
+    | SetNationToDownload NationIso3
+    | Download
+    | SetNationToRemove NationIso3
+    | RemoveNation NationIso3
+    | Remove
+    | GotData (Result Http.Error GetResponse)
+    | DownloadThis NationIso3
+
+
 update : Msg -> State -> ( State, Cmd Msg )
 update msg uistate =
     case msg of
@@ -84,6 +97,9 @@ update msg uistate =
 
                 Nothing ->
                     updateStateOnly { uistate | nationToDownload = Nothing, nationLookUpResult = [] }
+
+        DownloadThis nation ->
+            ( { uistate | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
 
         SetNationToRemove nation ->
             updateStateOnly { uistate | nationToRemove = Just nation }
@@ -165,18 +181,6 @@ fetchTemperatureData nation =
 updateStateOnly : State -> ( State, Cmd msg )
 updateStateOnly s =
     ( s, Cmd.none )
-
-
-type Msg
-    = ToggleSelected NationIso3
-    | ChangeFrom Year
-    | ChangeTo Year
-    | SetNationToDownload NationIso3
-    | Download
-    | SetNationToRemove NationIso3
-    | RemoveNation NationIso3
-    | Remove
-    | GotData (Result Http.Error GetResponse)
 
 
 earliest : Year

@@ -101,23 +101,30 @@ toYearSelectorView model =
 nationAdderView : State -> Element Msg
 nationAdderView model =
     let
-        button =
+        downloadButton nationName iso3Code =
             Input.button
                 [ Element.padding 5
                 , Background.color lightGrey
                 , Border.rounded 3
                 , Element.alignRight
                 ]
-                { label = Element.text "add"
-                , onPress = Just Download
+                { label = Element.text nationName
+                , onPress = Just (DownloadThis iso3Code)
                 }
+
+        withTip =
+            if List.length model.nationLookUpResult > 0 then
+                Element.el [ Element.onRight (Element.column [] (model.nationLookUpResult |> List.map (\{ countryOrArea, iso3Code } -> downloadButton countryOrArea iso3Code))) ] textInput
+
+            else
+                textInput
 
         textInput =
             let
                 current =
                     model.nationToDownload |> Maybe.withDefault ""
             in
-            Input.text [ Border.rounded 3, Element.width Element.fill ]
+            Input.text [ Border.rounded 3, Element.width (Element.px 150) ]
                 { onChange = \nation -> SetNationToDownload nation
                 , text = current
                 , placeholder = Nothing -- Just (Input.placeholder [] (Element.text "nation"))
@@ -125,8 +132,7 @@ nationAdderView model =
                 }
     in
     Element.row [ Element.spacing 5, Element.width Element.fill, Element.alignRight ]
-        [ textInput
-        , button
+        [ withTip
         ]
 
 
