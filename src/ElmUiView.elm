@@ -1,4 +1,4 @@
-module ElementView exposing (elementView)
+module ElmUiView exposing (elementView)
 
 import Browser
 import Dict
@@ -7,8 +7,9 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import HtmlView exposing (plotData)
 import Iso3 exposing (iso3Codes)
-import TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update)
+import TemperatureChart exposing (Model, Msg(..), dataToPlottable, earliest, fetchTemperatureData, init, latest, update)
 
 
 initialLoads : Cmd Msg
@@ -25,7 +26,7 @@ main =
         }
 
 
-elementView : State -> Element Msg
+elementView : Model -> Element Msg
 elementView model =
     Element.el []
         (Element.column []
@@ -36,7 +37,7 @@ elementView model =
         )
 
 
-dateSelectorView : State -> Element Msg
+dateSelectorView : Model -> Element Msg
 dateSelectorView model =
     Element.column [ Element.padding 5, Element.spacing 10, Element.alignLeft ] [ fromYearSelectorView model, toYearSelectorView model ]
 
@@ -62,7 +63,7 @@ sliderStyle =
     ]
 
 
-fromYearSelectorView : State -> Element Msg
+fromYearSelectorView : Model -> Element Msg
 fromYearSelectorView model =
     let
         cfg =
@@ -80,7 +81,7 @@ fromYearSelectorView model =
     Input.slider sliderStyle cfg
 
 
-toYearSelectorView : State -> Element Msg
+toYearSelectorView : Model -> Element Msg
 toYearSelectorView model =
     let
         cfg =
@@ -98,7 +99,7 @@ toYearSelectorView model =
     Input.slider sliderStyle cfg
 
 
-nationAdderView : State -> Element Msg
+nationAdderView : Model -> Element Msg
 nationAdderView model =
     let
         downloadButton nationName iso3Code =
@@ -154,7 +155,7 @@ shortenName name =
         String.slice 0 12 name ++ "..."
 
 
-nationsSelectorView : State -> Element Msg
+nationsSelectorView : Model -> Element Msg
 nationsSelectorView model =
     let
         removeButton : Iso3.NationIso3 -> Element Msg
@@ -197,6 +198,6 @@ nationsSelectorView model =
     Element.column [ Element.alignRight ] rows
 
 
-plotView : State -> Element msg
+plotView : Model -> Element msg
 plotView model =
     Element.el [ Element.alignLeft ] (dataToPlottable model |> plotData |> Element.html)

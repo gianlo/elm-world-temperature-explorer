@@ -3,13 +3,14 @@ module Main exposing (main)
 import Browser
 import Dict
 import Html exposing (..)
+import HtmlView
 import Iso3 exposing (NationIso3, iso3Codes)
 import Random
 import TemperatureChart
 
 
 type alias Model =
-    TemperatureChart.State
+    TemperatureChart.Model
 
 
 init : () -> ( Model, Cmd Msg )
@@ -106,5 +107,5 @@ view : Model -> Html Msg
 view model =
     div []
         [ text "Here's the Climate Data"
-        , TemperatureChart.view model |> Html.map TemperatureChartMsg
+        , HtmlView.view model |> Html.map TemperatureChartMsg
         ]

@@ -1,29 +1,16 @@
-module TemperatureChart exposing (Msg(..), State, dataToPlottable, earliest, fetchTemperatureData, init, latest, plotData, update, view)
+module TemperatureChart exposing (Model, Msg(..), Point, dataToPlottable, earliest, fetchTemperatureData, init, latest, maximumYearRange, update)
 
 import Debug exposing (log)
 import Dict exposing (Dict)
-import Html exposing (..)
-import Html.Attributes exposing (checked, class, name, type_, value)
-import Html.Events exposing (onClick, onInput, stopPropagationOn, targetValue)
 import Http
 import Iso3 exposing (Iso3Record, NationIso3, iso3Codes)
 import Json.Decode exposing (Decoder, field, float, int, list)
 import LineChart
-import LineChart.Area as Area
-import LineChart.Axis as Axis
-import LineChart.Axis.Intersection as Intersection
 import LineChart.Colors as Colors
-import LineChart.Container as Container
 import LineChart.Dots as Dots
-import LineChart.Events as Events
-import LineChart.Grid as Grid
-import LineChart.Interpolation as Interpolation
-import LineChart.Junk as Junk
-import LineChart.Legends as Legends
-import LineChart.Line as Line
 
 
-type alias State =
+type alias Model =
     { fromYear : Year
     , toYear : Year
     , selected : List NationIso3
@@ -34,20 +21,9 @@ type alias State =
     }
 
 
-init : State
+init : Model
 init =
     { fromYear = earliest, toYear = latest, selected = [], graphData = Dict.empty, nationToDownload = Nothing, nationToRemove = Nothing, nationLookUpResult = [] }
-
-
-view : State -> Html Msg
-view uistate =
-    div [ class "temp-chart-view" ]
-        [ dataToPlottable uistate |> plotData
-        , nationSelector (Dict.keys uistate.graphData) uistate
-        , yearSelector uistate
-        , viewNationToAdd uistate
-        , viewNationToRemove uistate
-        ]
 
 
 type Msg
@@ -63,17 +39,17 @@ type Msg
     | DownloadThis NationIso3
 
 
-update : Msg -> State -> ( State, Cmd Msg )
-update msg uistate =
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
     case msg of
         ToggleSelected nation ->
-            updateStateOnly (toggleSelected nation uistate)
+            updateStateOnly (toggleSelected nation model)
 
         ChangeFrom year ->
-            updateStateOnly { uistate | fromYear = year }
+            updateStateOnly { model | fromYear = year }
 
         ChangeTo year ->
-            updateStateOnly { uistate | toYear = year }
+            updateStateOnly { model | toYear = year }
 
         SetNationToDownload nation ->
             let
@@ -88,52 +64,52 @@ update msg uistate =
                     else
                         []
             in
-            updateStateOnly { uistate | nationToDownload = Just nation, nationLookUpResult = found }
+            updateStateOnly { model | nationToDownload = Just nation, nationLookUpResult = found }
 
         Download ->
-            case uistate.nationToDownload of
+            case model.nationToDownload of
                 Just nation ->
-                    ( { uistate | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
+                    ( { model | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
 
                 Nothing ->
-                    updateStateOnly { uistate | nationToDownload = Nothing, nationLookUpResult = [] }
+                    updateStateOnly { model | nationToDownload = Nothing, nationLookUpResult = [] }
 
         DownloadThis nation ->
-            ( { uistate | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
+            ( { model | nationToDownload = Nothing, nationLookUpResult = [] }, String.toUpper nation |> fetchTemperatureData )
 
         SetNationToRemove nation ->
-            updateStateOnly { uistate | nationToRemove = Just nation }
+            updateStateOnly { model | nationToRemove = Just nation }
 
         Remove ->
-            case uistate.nationToRemove of
+            case model.nationToRemove of
                 Just nation ->
                     updateStateOnly
-                        { uistate
-                            | selected = uistate.selected |> List.filter (\i -> i /= nation)
-                            , graphData = uistate.graphData |> Dict.remove nation
+                        { model
+                            | selected = model.selected |> List.filter (\i -> i /= nation)
+                            , graphData = model.graphData |> Dict.remove nation
                             , nationToRemove = Nothing
                         }
 
                 Nothing ->
-                    updateStateOnly { uistate | nationToRemove = Nothing }
+                    updateStateOnly { model | nationToRemove = Nothing }
 
         GotData result ->
             case result of
                 Ok (GetResponse nation data) ->
-                    updateStateOnly { uistate | selected = nation :: uistate.selected, graphData = Dict.insert nation data uistate.graphData }
+                    updateStateOnly { model | selected = nation :: model.selected, graphData = Dict.insert nation data model.graphData }
 
                 Err error ->
                     let
                         errorReason =
                             error |> encodeError
                     in
-                    updateStateOnly (log errorReason uistate)
+                    updateStateOnly (log errorReason model)
 
         RemoveNation nation ->
             updateStateOnly
-                { uistate
-                    | selected = uistate.selected |> List.filter (\i -> i /= nation)
-                    , graphData = uistate.graphData |> Dict.remove nation
+                { model
+                    | selected = model.selected |> List.filter (\i -> i /= nation)
+                    , graphData = model.graphData |> Dict.remove nation
                     , nationToRemove = Nothing
                 }
 
@@ -178,7 +154,7 @@ fetchTemperatureData nation =
         }
 
 
-updateStateOnly : State -> ( State, Cmd msg )
+updateStateOnly : Model -> ( Model, Cmd msg )
 updateStateOnly s =
     ( s, Cmd.none )
 
@@ -215,21 +191,13 @@ type alias Year =
     Int
 
 
-type alias Selected m =
-    { m | selected : List NationIso3 }
-
-
-type alias YearRange m =
-    { m | fromYear : Year, toYear : Year }
-
-
-toggleSelected : NationIso3 -> Selected m -> Selected m
-toggleSelected nation selection =
-    if selection.selected |> List.member nation then
-        { selection | selected = selection.selected |> List.filter (\n -> n /= nation) }
+toggleSelected : NationIso3 -> Model -> Model
+toggleSelected nation model =
+    if model.selected |> List.member nation then
+        { model | selected = model.selected |> List.filter (\n -> n /= nation) }
 
     else
-        { selection | selected = nation :: selection.selected }
+        { model | selected = nation :: model.selected }
 
 
 dataDecoder : Decoder Data
@@ -242,93 +210,10 @@ annualTemperatureDecoder =
     Json.Decode.map2 AnnualTemperature (field "year" int) (field "data" float)
 
 
-checkbox : Bool -> msg -> String -> Html msg
-checkbox isChecked msg name =
-    label
-        []
-        [ input [ type_ "checkbox", checked isChecked, onClick msg ] []
-        , text name
-        ]
-
-
-nationSelector : List NationIso3 -> Selected m -> Html Msg
-nationSelector all { selected } =
-    let
-        getNationName nation =
-            iso3Codes
-                |> List.filter (\{ iso3Code } -> iso3Code == nation)
-                |> List.head
-                |> Maybe.map .countryOrArea
-                |> Maybe.withDefault "Unknown"
-
-        ( isoCodes, nationNames ) =
-            all
-                |> List.map (\iso3Code -> ( iso3Code, getNationName iso3Code ))
-                |> List.sortBy (\( _, nationName ) -> nationName)
-                |> List.unzip
-
-        shortenName : String -> String
-        shortenName name =
-            if String.length name <= 12 then
-                name
-
-            else
-                String.slice 0 12 name ++ "..."
-
-        theCheckbox : NationIso3 -> String -> Html Msg
-        theCheckbox iso3Code nation =
-            checkbox (selected |> List.member iso3Code) (ToggleSelected iso3Code) (shortenName nation ++ " (" ++ iso3Code ++ ")")
-    in
-    div [ class "temp-chart-nation-selector" ] [ fieldset [] (List.map2 theCheckbox isoCodes nationNames) ]
-
-
 maximumYearRange : List Year
 maximumYearRange =
     List.range 0 13
         |> List.map (\decade -> earliest + 10 * decade)
-
-
-yearSelector : YearRange m -> Html Msg
-yearSelector uistate =
-    div [ class "temp-chart-year-selector" ]
-        [ fromYearSelector uistate
-        , toYearSelector uistate
-        ]
-
-
-fromYearSelector : YearRange m -> Html Msg
-fromYearSelector uistate =
-    let
-        changeYear : String -> Msg
-        changeYear txt =
-            ChangeFrom (String.toInt txt |> Maybe.withDefault uistate.fromYear)
-    in
-    div []
-        [ p [] [ text "From year:" ]
-        , select [ onInput changeYear ]
-            (maximumYearRange
-                |> List.filter (\year -> year <= uistate.toYear)
-                |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
-            )
-        ]
-
-
-toYearSelector : YearRange m -> Html Msg
-toYearSelector uistate =
-    let
-        changeYear : String -> Msg
-        changeYear txt =
-            ChangeTo (String.toInt txt |> Maybe.withDefault uistate.toYear)
-    in
-    div []
-        [ p [] [ text "To year:" ]
-        , select [ onInput changeYear ]
-            (maximumYearRange
-                |> List.filter (\year -> year >= uistate.fromYear)
-                |> List.reverse
-                |> List.map (\year -> option [ value (String.fromInt year) ] [ text (String.fromInt year) ])
-            )
-        ]
 
 
 type alias ThreeLetters =
@@ -410,8 +295,8 @@ computeSpatialAverage selectedTimeSeries =
     spatialAverage
 
 
-dataToPlottable : State -> List (LineChart.Series Point)
-dataToPlottable uistate =
+dataToPlottable : Model -> List (LineChart.Series Point)
+dataToPlottable model =
     let
         colors =
             Dict.fromList
@@ -439,12 +324,12 @@ dataToPlottable uistate =
                 color =
                     Dict.get modIndex colors |> Maybe.withDefault Colors.black
             in
-            LineChart.line color Dots.square nation (toDataPoints uistate data)
+            LineChart.line color Dots.square nation (toDataPoints model data)
 
         selectedTimeSeries : List ( NationIso3, Data )
         selectedTimeSeries =
-            Dict.toList uistate.graphData
-                |> List.filter (\( nation, _ ) -> uistate.selected |> List.member nation)
+            Dict.toList model.graphData
+                |> List.filter (\( nation, _ ) -> model.selected |> List.member nation)
 
         spatialAverageTimeSeries =
             if List.length selectedTimeSeries > 1 then
@@ -458,68 +343,10 @@ dataToPlottable uistate =
         |> List.map (\( nation, data ) -> aChart nation data)
 
 
-plotData : List (LineChart.Series Point) -> Html msg
-plotData series =
-    div [ class "temp-chart" ]
-        [ LineChart.viewCustom
-            { x = Axis.default 700 "year" .x
-            , y = Axis.default 400 "temp (degree)" .y
-            , container = Container.default "line-chart-1"
-            , interpolation = Interpolation.default
-            , intersection = Intersection.default
-            , legends = Legends.default
-            , events = Events.default
-            , junk = Junk.default
-            , grid = Grid.default
-            , area = Area.default
-            , line = Line.default
-            , dots = Dots.default
-            }
-            series
-        ]
-
-
 type alias Point =
     { x : Float, y : Float }
 
 
-toDataPoints : YearRange m -> Data -> List Point
-toDataPoints uistate data =
-    List.filter (\p -> p.x >= toFloat uistate.fromYear && p.x <= toFloat uistate.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
-
-
-viewNationToAdd : State -> Html Msg
-viewNationToAdd uistate =
-    div []
-        [ p [] [ text "Add another nation:" ]
-        , select [ onInput SetNationToDownload ]
-            (iso3Codes
-                |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code |> not)
-                |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
-            )
-        , button [ onClick Download ] [ text "add" ]
-        ]
-
-
-onChange : (String -> msg) -> Attribute msg
-onChange tagger =
-    stopPropagationOn "change" <|
-        Json.Decode.map alwaysStop (Json.Decode.map tagger targetValue)
-
-
-alwaysStop : a -> ( a, Bool )
-alwaysStop x =
-    ( x, True )
-
-
-viewNationToRemove : State -> Html Msg
-viewNationToRemove uistate =
-    div []
-        [ p [] [ text "Remove nation:" ]
-        , select [ onChange SetNationToRemove, name "nation" ]
-            (iso3Codes
-                |> List.filter (\{ iso3Code } -> Dict.keys uistate.graphData |> List.member iso3Code)
-                |> List.map (\{ countryOrArea, iso3Code } -> option [ value iso3Code ] [ text countryOrArea ])
-            )
-        , button [ onClick Remove ] [ text "remove" ]
-        ]
+toDataPoints : Model -> Data -> List Point
+toDataPoints model data =
+    List.filter (\p -> p.x >= toFloat model.fromYear && p.x <= toFloat model.toYear) (List.map (\d -> Point (toFloat d.year) d.temp) data)
