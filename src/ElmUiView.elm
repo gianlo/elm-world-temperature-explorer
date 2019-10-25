@@ -30,7 +30,7 @@ elementView : Model -> Element Msg
 elementView model =
     Element.el []
         (Element.column []
-            [ Element.el [ Element.centerX, Font.bold, Font.size 24, Font.family [ Font.monospace ] ] (Element.text "Yearly average temperature")
+            [ Element.el [ Element.centerX, Font.bold, Font.size 24, Font.family [ Font.monospace ] ] (Element.text "Yearly average temperature from The World Bank")
             , Element.row [ Element.padding 5, Element.spacing 10, Element.width Element.fill ] [ plotView model, nationsSelectorView model ]
             , Element.row [ Element.padding 5, Element.spacing 10, Element.width Element.fill ] [ dateSelectorView model, nationAdderView model ]
             ]
