@@ -11,11 +11,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Check out code
+      uses: actions/checkout@v1
+
     - name: Set up Elm
       run: sh scripts/install_elm.sh
       
-    - name: Check out code
-      uses: actions/checkout@v1
-    
+
     - name: Build ElmUiView
       run: elm make src/ElmUiView.elm
