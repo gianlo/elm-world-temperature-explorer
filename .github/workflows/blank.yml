@@ -25,9 +25,10 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run:
+      run: |
         aws s3 cp \
           index.html \
           s3://www.gianlorenzo.net \
-          --acl public-read
+          --acl public-read \
+          --region eu-west-1
 
