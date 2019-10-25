@@ -27,7 +27,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run:
         aws s3 cp \
-          --acl public-read \
-          --region eu-west-1 \
           index.html \
-          s3://www.gianlorenzo.net
+          s3://www.gianlorenzo.net \
+          --acl public-read
+
