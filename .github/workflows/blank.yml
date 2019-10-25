@@ -12,9 +12,7 @@ jobs:
 
     steps:
     - name: Set up Elm
-      uses: jorelali/setup-elm@v1
-      with:
-        elm-version: 0.19.0
+      run: sh scripts/install_elm.sh
       
     - name: Check out code
       uses: actions/checkout@v1
