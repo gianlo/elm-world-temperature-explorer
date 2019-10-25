@@ -7,12 +7,17 @@ on:
 
 jobs:
   build:
-
+    name: Build ElmUiView
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Install elm
-      run: npm install --unsafe-perm -g elm@0.19.0-no-deps
+    - name: Set up Elm
+      uses: jorelali/setup-elm@v1
+      with:
+        elm-version: 0.19.1
+      
+    - name: Check out code
+      uses: actions/checkout@v1
+    
     - name: Build ElmUiView
       run: elm make src/ElmUiView.elm
