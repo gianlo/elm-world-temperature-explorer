@@ -14,7 +14,7 @@ jobs:
     - name: Set up Elm
       uses: jorelali/setup-elm@v1
       with:
-        elm-version: 0.19
+        elm-version: 0.19.0
       
     - name: Check out code
       uses: actions/checkout@v1
