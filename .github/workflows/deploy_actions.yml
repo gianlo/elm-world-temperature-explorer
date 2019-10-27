@@ -18,7 +18,7 @@ jobs:
       run: sh scripts/install_elm.sh
 
     - name: Install uglifyjs
-      run: npm install uglify-js -g
+      run: sudo npm install uglify-js -g
 
     - name: Build ElmUiView
       run: sh scripts/build.sh src/ElmUiView.elm temperatureExplorer.js
