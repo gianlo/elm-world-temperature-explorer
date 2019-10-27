@@ -19,7 +19,7 @@ Both implementations provide the user with the ability to:
 How to run
 ----------
 
-- Install elm `0.19`
+- Install elm `0.19.1`
 - For the plain `elm` implementation run: `elm make src/Main.elm`
 - For the `elm-ui` implementation run: `elm make src/ElmUiView.elm` 
 - View the `index.html` produced by the compiler in a browser
