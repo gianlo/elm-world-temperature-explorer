@@ -19,16 +19,28 @@ jobs:
       
 
     - name: Build ElmUiView
-      run: elm make src/ElmUiView.elm
+      run: elm make src/ElmUiView.elm --optimize --output temperatureExplorer.js
 
     - name: Deploy ElmUiView
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
+        gzip temperatureExplorer.js
+        mv temperatureExplorer.js.gz temperatureExplorer.js
+        echo Deploying script
+        aws s3 cp \
+          temperatureExplorer.js \
+          s3://www.gianlorenzo.net \
+          --acl public-read \
+          --region eu-west-1 \
+          --content-type "application/javascript" \
+          --content-encoding gzip
+        echo Deploying page
         aws s3 cp \
           index.html \
           s3://www.gianlorenzo.net \
           --acl public-read \
           --region eu-west-1
+
 

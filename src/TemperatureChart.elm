@@ -1,6 +1,5 @@
 module TemperatureChart exposing (Model, Msg(..), Point, dataToPlottable, earliest, fetchTemperatureData, init, latest, maximumYearRange, update)
 
-import Debug exposing (log)
 import Dict exposing (Dict)
 import Http
 import Iso3 exposing (Iso3Record, NationIso3, iso3Codes)
@@ -98,12 +97,8 @@ update msg model =
                 Ok (GetResponse nation data) ->
                     updateStateOnly { model | selected = nation :: model.selected, graphData = Dict.insert nation data model.graphData }
 
-                Err error ->
-                    let
-                        errorReason =
-                            error |> encodeError
-                    in
-                    updateStateOnly (log errorReason model)
+                _ ->
+                    updateStateOnly model
 
         RemoveNation nation ->
             updateStateOnly
